@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>QOTD Generator</title>
+  <style>
+    :root{
+      --bg1:#fff7fb;
+      --bg2:#f3fbff;
+      --ink:#1b1b1f;
+      --muted:#5b5b66;
+      --panel:#ffffff;
+      --stroke: rgba(35, 35, 40, .18);
+      --shadow: 0 18px 45px rgba(20, 20, 30, .12);
+      --btn:#1f2430;
+      --btnText:#ffffff;
+      --ring: 0 0 0 3px rgba(108, 92, 231, .25);
+      --radius: 18px;
+    }
+    @media (prefers-color-scheme: dark){
+      :root{
+        --bg1:#0b0b12;
+        --bg2:#101827;
+        --ink:#f2f3f7;
+        --muted:#b7b8c2;
+        --panel:#121624;
+        --stroke: rgba(255,255,255,.14);
+        --shadow: 0 18px 45px rgba(0,0,0,.55);
+        --btn:#f2f3f7;
+        --btnText:#121624;
+        --ring: 0 0 0 3px rgba(0, 194, 168, .25);
+      }
+    }
+    *{ box-sizing: border-box; }
+    body{
+      margin: 0;
+      min-height: 100vh;
+      font-family: ui-rounded, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 12px 12px, rgba(255,107,154,.18) 2px, transparent 3px) 0 0/28px 28px,
+        radial-gradient(circle at 26px 24px, rgba(0,194,168,.15) 2px, transparent 3px) 0 0/34px 34px,
+        linear-gradient(135deg, var(--bg1), var(--bg2));
+      padding: 40px 18px;
+      display: grid;
+      place-items: center;
+    }
+    .card{
+      width: min(900px, 100%);
+      border-radius: calc(var(--radius) + 10px);
+      background: linear-gradient(180deg, color-mix(in srgb, var(--panel) 96%, transparent), var(--panel));
+      border: 1px solid var(--stroke);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      position: relative;
+    }
+    header{
+      position: relative;
+      padding: 18px 20px 12px;
+    }
+    h1{ margin:0; font-size:22px; }
+    .sub{ margin:6px 0 0; font-size:13px; color:var(--muted); }
+    .content{ padding:18px 20px 22px; display:grid; gap:14px; }
+    .screen{
+      border-radius: var(--radius);
+      border: 1px solid var(--stroke);
+      background: linear-gradient(180deg, color-mix(in srgb, var(--panel) 94%, transparent), color-mix(in srgb, var(--panel) 86%, transparent));
+      padding: 18px;
+      min-height: 160px;
+      display:flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .question{
+      font-size: clamp(20px, 2.2vw, 28px);
+      line-height: 1.25;
+      margin: 0;
+    }
+    .meta{ font-size:12px; color:var(--muted); }
+    button{
+      font: inherit;
+      border-radius: 14px;
+      border: 1px solid var(--stroke);
+      padding: 12px 14px;
+      cursor: pointer;
+      background: var(--btn);
+      color: var(--btnText);
+      box-shadow: 0 10px 20px rgba(0,0,0,.12);
+      width: fit-content;
+    }
+    .row{ display:flex; gap:12px; flex-wrap:wrap; align-items:center; justify-content:space-between; }
+  </style>
+</head>
+<body>
+  <main class="card" role="region" aria-label="QOTD Generator">
+    <header>
+      <h1>QOTD Generator</h1>
+      <p class="sub">One button. Random questions. No repeats until the full set is used.</p>
+    </header>
+
+    <section class="content">
+      <div class="screen">
+        <p id="question" class="question" aria-live="polite">
+          Click <b>Generate</b> to get today’s question.
+        </p>
+        <div id="meta" class="meta"></div>
+      </div>
+
+      <div class="row">
+        <button id="generateBtn" type="button">Generate</button>
+        <div id="countInfo" class="meta"></div>
+      </div>
+    </section>
+  </main>
+
+<script>
+const TARGET_COUNT = 1000;
+const STORAGE_KEY  = "qotd_generator_fun_v3";
+
+const BANK = {
+  adjectives: [
+    "simple","classic","cozy","fun","practical","unexpected","useful",
+    "underrated","popular","favorite"
+  ],
+
+  topics: [
+    "snack","drink","song","playlist","movie","show","book","podcast","YouTube channel",
+    "restaurant","comfort food","dessert","cuisine","scent","color","animal",
+    "mythical creature","hobby","board game","museum","place to visit","road trip stop"
+  ],
+
+  activities: [
+    "relax after work","reset your brain","celebrate a small win",
+    "start your morning","wind down at night","spark ideas",
+    "get motivated","learn something new"
+  ],
+
+  workBits: [
+    "email","meetings","planning","brainstorming","writing","editing",
+    "organizing files","keeping track of tasks","collaboration","presenting",
+    "reviewing feedback","social posts"
+  ],
+
+  wouldYouRather: [
+    ["only reply in gifs for a day","only reply in voice notes for a day"],
+    ["have a personal theme song","have a personal spotlight that follows you"],
+    ["fast-forward boring moments","rewind awkward moments"],
+    ["unlimited coffee or tea","unlimited snacks"],
+    ["teleport anywhere","pause time"]
+  ],
+
+  whoWouldWin: [
+    ["a golden retriever","a raccoon"],
+    ["a robot vacuum","a house cat"],
+    ["a penguin","a goose"],
+    ["a squirrel","a rabbit"],
+    ["a very confident duck","a slightly grumpy dog"]
+  ],
+
+  directFun: [
+    "What is your spirit animal, and why?",
+    "What was your favorite toy as a kid?",
+    "What’s your go-to comfort snack?",
+    "What’s a movie you can watch over and over?",
+    "If you could live in any fictional world, where would you choose?",
+    "What smell instantly makes you feel nostalgic?",
+    "What’s the best road trip snack?",
+    "What’s your favorite animal?",
+    "What’s a small thing that always makes your day better?",
+    "If you could have dinner with any famous person, who would it be?"
+  ]
+};
+
+function mulberry32(seed) {
+  return function() {
+    let t = seed += 0x6D2B79F5;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function hashStringToInt(str){
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++){
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+function shuffleArray(arr){
+  const copy = [...arr];
+  for (let i = copy.length - 1; i > 0; i--){
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
+
+function pick(arr, rnd){
+  return arr[Math.floor(rnd() * arr.length)];
+}
+
+function format(template, values){
+  return template.replace(/\{(\w+)\}/g, (_, k) => String(values[k] ?? `{${k}}`));
+}
+
+function generateQuestionBank(targetCount){
+  const seed = hashStringToInt(STORAGE_KEY);
+  const rnd  = mulberry32(seed);
+
+  const templates = [
+    "What is your favorite {topic}?",
+    "What’s your go-to {topic}?",
+    "What’s one {topic} you’d recommend to anyone?",
+    "What’s your favorite way to {activity}?",
+    "What’s a tip you’d share for {workBit}?",
+    "If you could invite {personType} to lunch, who would you pick?",
+    "If you could have one superpower, what would it be?",
+    "Would you rather {wyrA} or {wyrB}?",
+    "Who would win: {fighterA} or {fighterB}?"
+  ];
+
+  const questions = new Set();
+
+  // Add direct fun questions first
+  BANK.directFun.forEach(q => questions.add(q));
+
+  let guard = 0;
+  while (questions.size < targetCount && guard < targetCount * 80){
+    guard++;
+    const wyr = pick(BANK.wouldYouRather, rnd);
+    const duel = pick(BANK.whoWouldWin, rnd);
+    const values = {
+      topic: pick(BANK.topics, rnd),
+      activity: pick(BANK.activities, rnd),
+      workBit: pick(BANK.workBits, rnd),
+      personType: pick(BANK.questionsPeople ?? ["a celebrity"], rnd),
+      wyrA: wyr[0],
+      wyrB: wyr[1],
+      fighterA: duel[0],
+      fighterB: duel[1]
+    };
+    const t = pick(templates, rnd);
+    const q = format(t, values).trim();
+    if (q.length > 12) questions.add(q);
+  }
+  return Array.from(questions);
+}
+
+function loadState(){
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+
+function saveState(state){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+function freshState(bank){
+  return { bank, order: shuffleArray(bank), index: 0, cycle: 1 };
+}
+
+function ensureValidState(state, bank){
+  if (!state || !Array.isArray(state.bank) || !Array.isArray(state.order)){
+    return freshState(bank);
+  }
+  if (state.bank.length !== bank.length) return freshState(bank);
+  state.index = Math.max(0, Math.min(state.index, state.order.length));
+  state.cycle = state.cycle || 1;
+  return state;
+}
+
+function getNextQuestion(state){
+  if (state.index >= state.order.length){
+    state.order = shuffleArray(state.bank);
+    state.index = 0;
+    state.cycle += 1;
+  }
+  const q = state.order[state.index];
+  state.index += 1;
+  return q;
+}
+
+const bank = generateQuestionBank(TARGET_COUNT);
+let state = ensureValidState(loadState(), bank);
+saveState(state);
+
+const qEl = document.getElementById("question");
+const metaEl = document.getElementById("meta");
+const countEl = document.getElementById("countInfo");
+
+function updateMeta(){
+  const remaining = state.order.length - state.index;
+  metaEl.textContent = `No repeats • Remaining: ${remaining} • Cycle: ${state.cycle}`;
+  countEl.textContent = `Bank size: ${state.bank.length}`;
+}
+
+function generate(){
+  const q = getNextQuestion(state);
+  saveState(state);
+  qEl.textContent = q;
+  updateMeta();
+}
+
+updateMeta();
+document.getElementById("generateBtn").addEventListener("click", generate);
+</script>
+</body>
+</html>
